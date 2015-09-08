@@ -229,25 +229,28 @@ class SatelliteServer(object):
         if self._debug:
             print("Beginning to upload the image")
         offset = 0
-        image_stream = self._docker_client.get_image(image)
-        while True:
-            content = image_stream.read(self._chunk_size)
-            if not content:
-                break
-            url = "{0}/katello/api/repositories/{1}/content_uploads/{2}".format(self._server_url, repo_id, upload_id)
-            sys.stdout.flush()
-            sys.stdout.write(".")
-            payload = {
-                'offset': offset,
-                'content': content
-            }
-            r_json = self._call_satellite(url, "put-multi-part", payload)
-            if (r_json is not None):
-                if ('errors' in r_json):
-                    raise Exception("Unable to upload image.  Error:{0}"
-                                    .format(r_json.get("errors")))
-            offset += self._chunk_size
-        image_stream.close()
+        with self._docker_client.get_image(image) as image_stream:
+            while True:
+                content = image_stream.read(self._chunk_size)
+                if not content:
+                    break
+                url = "{0}/katello/api/repositories/{1}/content_uploads/{2}".format(self._server_url, repo_id, upload_id)
+                sys.stdout.flush()
+                sys.stdout.write(".")
+                payload = {
+                    'offset': offset,
+                    'content': content
+                }
+                r_json = self._call_satellite(url, "put-multi-part", payload)
+                if (r_json is not None):
+                    if ('errors' in r_json):
+                        raise Exception("Unable to upload image.  Error:{0}"
+                                        .format(r_json.get("errors")))
+                offset += self._chunk_size
+        # image_stream.close()
+        sys.stdout.flush()
+        sys.stdout.write(".\n")
+
         if self._debug:
             print("Finished uploading the image data")
 
